@@ -1,18 +1,18 @@
 programs:
   nginx:
     cmd: "/usr/local/bin/nginx -c /etc/nginx/test.conf"
-    numprocs:
+    numprocs: 1
     umask: 022
     workingdir: /tmp
     autostart: true
-    autorestart: 
+    autorestart: unexpected
     exitcodes:
       - 0
       - 2
     startretries: 3
-    starttime: 5
-    stopsignal: TERM
-    stoptime: 10
+    startsecs: 5
+    stopsignal: SIGTERM
+    stopwaitsecs: 10
     stdout: /tmp/nginx.stdout
     stderr: /tmp/nginx.stderr
     env:
@@ -25,10 +25,11 @@ programs:
     workingdir: /tmp
     autostart: true
     autorestart: unexpected
-    exitcodes: 0
+    exitcodes: 
+      - 0
     startretries: 3
-    starttime: 5
-    stopsignal: USR1
-    stoptime: 10
+    startsecs: 5
+    stopsignal: SIGUSR1
+    stopwaitsecs: 10
     stdout: /tmp/vgsworker.stdout
     stderr: /tmp/vgsworker.stderr
