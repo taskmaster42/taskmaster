@@ -1,5 +1,6 @@
 import socketserver
 import logging
+from Serializer import Serializer
 
 
 logging.basicConfig(level=logging.DEBUG,
@@ -20,11 +21,12 @@ class TestSocketHandler(socketserver.BaseRequestHandler):
 
     def handle(self) -> None:
         data_revc = self.request.recv(1024).strip()
-        data_msg = data_revc.decode().upper()
+        data_msg = Serializer.deserialize(data_revc)
         self.logger.debug("handle")
-        self.logger.debug(f"Received: {data_revc}")
-        self.request.send(data_msg.encode())
-        self.logger.debug(f"Sent: {data_msg}")
+        self.logger.debug(f"Received: {data_msg}")
+        response = {"message": "Hello !", "code": 400}
+        self.request.send(Serializer.serialize(response))
+        self.logger.debug(f"Sent: {response}")
         return
 
 

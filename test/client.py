@@ -1,5 +1,6 @@
 import socket
 import sys
+from Serializer import Serializer
 
 
 class TestSocketClient:
@@ -22,10 +23,10 @@ def main() -> None:
     port = int(sys.argv[1])
 
     socketClient = TestSocketClient("localhost", port)
-    message = b"Hello, world"
-    print("Sending:", message)
-    response = socketClient.send(message)
-    print("Received:", response)
+    data = {"message": "Hello, World!", "code": 200}
+    print("Sending:", Serializer.serialize(data))
+    response = socketClient.send(Serializer.serialize(data))
+    print("Received:", Serializer.deserialize(response))
     socketClient.close()
 
 
