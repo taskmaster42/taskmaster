@@ -18,11 +18,10 @@ class TestSocketClient:
 
 
 def main() -> None:
-    assert len(sys.argv) == 3, "Usage: python client.py <address> <port>"
-    address = sys.argv[1]
+    assert len(sys.argv) == 2, "Usage: python client.py <port>"
     port = int(sys.argv[1])
 
-    socketClient = TestSocketClient(address, port)
+    socketClient = TestSocketClient("localhost", port)
     message = b"Hello, world"
     print("Sending:", message)
     response = socketClient.send(message)
