@@ -17,7 +17,7 @@ class Config():
         "stopwaitsecs": (int, 10),
         "stdout": (str, None),
         "stderr": (str, None),
-        "env": (dict, None),
+        "env": (dict, []),
         "stopsignal": (SignalType, SignalType("SIGKILL"))
     }
 
@@ -35,7 +35,9 @@ class Config():
 
         for key, value in self.authorized_key.items():
             if key not in self.config:
-                self.config[key] = self.authorized_key[key][1]
+                print(f"{key}")
+                self.config[key] = ConfigElement(self.authorized_key[key][1],
+                                                self.authorized_key[key][0])
 
         if "cmd" not in self.config:
             raise AssertionError("No cmd provided")
