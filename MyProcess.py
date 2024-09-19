@@ -31,8 +31,11 @@ class MyProcess():
             self.stdout_log = os.open(Config.get("stdout"),
                                       os.O_WRONLY | os.O_CREAT)
         if Config.get("stderr") != 'None':
-            self.stderr_log = os.open(Config.get("stderr"),
-                                      os.O_WRONLY | os.O_CREAT)
+            if Config.get("stderr") == Config.get("stdout"):
+                self.stderr_log = self.stdout_log
+            else:
+                self.stderr_log = os.open(Config.get("stderr"),
+                                          os.O_WRONLY | os.O_CREAT)
         self.state = None
         self.got_killed = False
         self.attached = False
@@ -43,6 +46,8 @@ class MyProcess():
         self.stdin_read, self.stdin_write = os.pipe()
         self.stdout_read, self.stdout_write = os.pipe()
         self.stderr_read, self.stderr_write = os.pipe()
+        self.stderr_log = -1
+        self.stdout_log = -1
 
     def get_name(self):
         return self.name
@@ -78,10 +83,15 @@ class MyProcess():
         else:
             self.state = ProcessState.FINISH
 
+        # process is finished we empty the pipe if needed
+        if os.fstat(self.stdout_read).st_size > 0:
+            self.read_fd(self.stdout_read, self.stdout_log, 'stdout')
+        if os.fstat(self.stderr_read).st_size > 0:
+            self.read_fd(self.stderr_read, self.stderr_log, 'stderr')
+        self.clean_up()
         logger.info(f"Process {self.name} has finished with {self.return_code}" +
                     f"({'expected' if self.is_exit_expected() else 'unexpected'})")
         self.q.put(f"{self.name}")
-        self.clean_up()
 
     def clean_up(self):
         os.close(self.stderr_read)
@@ -92,7 +102,7 @@ class MyProcess():
         os.close(self.stdin_write)
         if self.Config.get("stdout") != 'None':
             os.close(self.stdout_log)
-        if self.Config.get("stderr") != 'None':
+        if self.Config.get("stderr") != 'None' and self.Config.get("stderr") != self.Config.get("stdout"):
             os.close(self.stderr_log)
 
     def killed(self):
@@ -129,9 +139,10 @@ class MyProcess():
         self.data = b''
         if self.Config.get(name) == 'None' and self.attached:
             # We empty the pipe if we dont capture
-            self.data = os.read(fd_read, 1000)
+            self.data = os.read(fd_read, 65000)
             self.data = b''
-        self.data = os.read(fd_read, 1000)
+            return
+        self.data = os.read(fd_read, 65000)
         if self.Config.get(name) != 'None':
             os.write(fd_log, self.data)
         # Here we will probably send it to the client
