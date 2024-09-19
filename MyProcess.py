@@ -16,7 +16,7 @@ class ProcessState(Enum):
     KILLED = "KILLED"
     STOPPED = "STOPPED"
     FAILED = "FAILED"
-    FINISH = "FAILED"
+    FINISH = "FINISH"
 
 
 class MyProcess():
@@ -63,6 +63,13 @@ class MyProcess():
         diff = time_finish - self.time_started
         return diff.seconds < self.Config.get("startsecs")
 
+    def set_child_env(self):
+        orig_env = dict(os.environ)
+        new_env = self.Config.get("env")
+        if new_env != {}:
+            orig_env.update(new_env)
+        return orig_env
+
     def run(self):
         logger.info(f"Spawned {self.name}")
         self.state = ProcessState.SPAWNED
@@ -70,7 +77,8 @@ class MyProcess():
         self.proc = subprocess.Popen(self.cmd,
                                      stdin=self.stdin_read,
                                      stdout=self.stdout_write,
-                                     stderr=self.stderr_write)
+                                     stderr=self.stderr_write,
+                                     env=self.set_child_env())
         self.state = ProcessState.RUNNING
         logger.info(f"Process {self.name} has entered a RUNNING" +
                     f" state with PID {self.proc.pid}")
@@ -89,8 +97,9 @@ class MyProcess():
         if os.fstat(self.stderr_read).st_size > 0:
             self.read_fd(self.stderr_read, self.stderr_log, 'stderr')
         self.clean_up()
+        expected = self.is_exit_expected()
         logger.info(f"Process {self.name} has finished with {self.return_code}" +
-                    f"({'expected' if self.is_exit_expected() else 'unexpected'})")
+                    f"({'expected' if expected else 'unexpected'})")
         self.q.put(f"{self.name}")
 
     def clean_up(self):

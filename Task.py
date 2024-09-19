@@ -1,6 +1,10 @@
 from MyProcess import MyProcess
 from config_parser import Config
 from config_types import AutoRestartType
+import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Task():
@@ -11,6 +15,7 @@ class Task():
     def create_process_list(self, q):
         self.process_list = []
         self.process_history = {}
+        self.process_history_last_restart = {}
         for i in range(0, self.config.get("numprocs")):
             process_name = self.task_name + ":" + str(i)
             new_process = MyProcess(self.config,
@@ -19,19 +24,40 @@ class Task():
                                     q)
             self.process_list.append(new_process)
             self.process_history[process_name] = 0
+            self.process_history_last_restart[process_name] = [datetime.datetime.now()]
         return self.process_list
+
+    def check_fatal(self, process_history):
+        # here we will if we tried to restart process too quickly
+        # => max 3 retrie in less than 2 sec
+        max_retrie = 3
+        timeout = 2
+        if len(process_history) <= max_retrie:
+            return False
+        if process_history[max_retrie - 1] - process_history[0] < datetime.timedelta(seconds=timeout):
+            return True
+
+        # we remove the oldest retry time
+        process_history.pop(0)
+        return False
 
     def recreate_process(self, process, q):
         if process.killed():
             return None
+
         self.process_history[process.get_name()] += 1
+        self.process_history_last_restart[process.get_name()].append(datetime.datetime.now())
+
+        if self.check_fatal(self.process_history_last_restart[process.get_name()]):
+            logging.info(f"gave yup {process.get_name()} entered a FATAL state, too many start retries too quickly")
+            return None
         if self.config.get("autorestart") == AutoRestartType('true'):
             return MyProcess(self.config, process.get_name(),
                              self.task_name, q)
         if self.process_history[process.get_name()] >\
                 self.config.get("startretries"):
             return None
-        if process.is_exit_expected() and\
+        if not process.is_exit_expected() and\
                 self.config.get("autorestart") == AutoRestartType('unexpected'):
             return MyProcess(self.config, process.get_name(),
                              self.task_name, q)
