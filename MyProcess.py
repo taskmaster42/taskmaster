@@ -45,6 +45,17 @@ class MyProcess():
         self.lock = threading.Lock()
     
 
+    def clone(self):
+        new_process = MyProcess(Config=self.Config, 
+                                task_name=self.task_name,
+                                name=self.name, 
+                                q=self.q)
+        return new_process
+
+    def get_config_key(self, key):
+        return self.Config.get(key)
+    
+        
     def open_pipe(self):
         self.stdin_read, self.stdin_write = os.pipe()
         self.stdout_read, self.stdout_write = os.pipe()
@@ -84,8 +95,12 @@ class MyProcess():
         poller = Poller(1)
         poller.register_process(self)
         fd_r = poller.get_process_ready()
+        print(fd_r)
         if fd_r != []:
-           self.handle_read()
+            for _, fd in fd_r.items():
+                self.set_fd_ready(fd)
+                print(fd)
+            self.handle_read()
 
     def run(self):
         logger.info(f"Spawned {self.name}")
@@ -117,6 +132,7 @@ class MyProcess():
                     f"({'expected' if expected else 'unexpected'})")
         self.q.put(f"{self.name}")
 
+
     def clean_up(self):
         os.close(self.stderr_read)
         os.close(self.stdout_read)
@@ -137,6 +153,11 @@ class MyProcess():
             return False
         return self.return_code in self.Config.get("exitcodes")
 
+    def stop_wait(self):
+        th = threading.Thread(target=self._stop)
+        th.start()
+        th.join()
+    
     def stop(self):
         th = threading.Thread(target=self._stop)
         th.start()
@@ -157,6 +178,8 @@ class MyProcess():
                 break
         if self.state == ProcessState.RUNNING:
             os.kill(self.proc.pid, signal.SIGKILL)
+
+        
 
     def read_fd(self, fd_read, fd_log, name):
         # We should probably buffer it and only write if we have a \n
@@ -200,4 +223,5 @@ class MyProcess():
         self.attached = False
 
     def set_fd_ready(self, fd_ready):
-        self.fd_ready.append(fd_ready)
+        for fd in fd_ready:
+            self.fd_ready.append(fd)

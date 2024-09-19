@@ -43,3 +43,13 @@ class Config():
 
     def get(self, key):
         return self.config[key].get_value()
+
+    def __eq__(self, value: object) -> bool:
+        for key, v in self.config.items():
+            try:
+                if v != value.config.get(key):
+                    return False
+            except Exception as e:
+                    
+                    return False
+        return True

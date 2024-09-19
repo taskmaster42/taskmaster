@@ -12,8 +12,11 @@ class Task():
         self.task_name = task_name
         self.config = Config(config_file)
 
+    def __eq__(self, value: object) -> bool:
+        return self.config == value.config
+
     def create_process_list(self, q):
-        self.process_list = []
+        process_list = {}
         self.process_history = {}
         self.process_history_last_restart = {}
         for i in range(0, self.config.get("numprocs")):
@@ -22,10 +25,10 @@ class Task():
                                     process_name,
                                     self.task_name,
                                     q)
-            self.process_list.append(new_process)
+            process_list[new_process.get_name()] = new_process
             self.process_history[process_name] = 0
             self.process_history_last_restart[process_name] = [datetime.datetime.now()]
-        return self.process_list
+        return process_list
 
     def check_fatal(self, process_history):
         # here we will if we tried to restart process too quickly
@@ -60,14 +63,9 @@ class Task():
         if self.check_fatal(self.process_history_last_restart[process.get_name()]):
             logging.info(f"gave yup {process.get_name()} entered a FATAL state, too many start retries too quickly")
             return None
-        if self.config.get("autorestart") == AutoRestartType('true'):
-            return self.renew_process(process, q)
-        if self.process_history[process.get_name()] >\
-                self.config.get("startretries"):
-            return None
-        if not process.is_exit_expected() and\
-                self.config.get("autorestart") == AutoRestartType('unexpected'):
-            return self.renew_process(process, q)
+
+
+  
         return None
 
 
@@ -78,3 +76,11 @@ class Task():
             process_status[process.get_name()] = [process.get_status(), process.get_pid()]
 
         return process_status
+    
+
+    def stop_all_process(self):
+        for process in self.process_list:
+            process.stop_wait()
+
+    def get_process_list(self):
+        return self.process_list

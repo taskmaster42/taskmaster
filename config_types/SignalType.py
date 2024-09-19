@@ -10,3 +10,6 @@ class SignalType():
 
     def get_num(self):
         return self.num
+    
+    def __eq__(self, value: object) -> bool:
+        return self.num == value.get_num()
