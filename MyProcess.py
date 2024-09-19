@@ -30,11 +30,14 @@ class MyProcess():
         if Config.get("stdout") != 'None':
             self.stdout_log = os.open(Config.get("stdout"),
                                       os.O_WRONLY | os.O_CREAT)
-
+        if Config.get("stderr") != 'None':
+            self.stderr_log = os.open(Config.get("stderr"),
+                                      os.O_WRONLY | os.O_CREAT)
         self.state = None
         self.got_killed = False
         self.attached = False
         self.th = threading.Thread(target=self.run, args=())
+        self.fd_ready = []
 
     def open_pipe(self):
         self.stdin_read, self.stdin_write = os.pipe()
@@ -89,9 +92,8 @@ class MyProcess():
         os.close(self.stdin_write)
         if self.Config.get("stdout") != 'None':
             os.close(self.stdout_log)
-
-    def get_thread(self):
-        return self.th
+        if self.Config.get("stderr") != 'None':
+            os.close(self.stderr_log)
 
     def killed(self):
         return self.got_killed
@@ -122,28 +124,36 @@ class MyProcess():
         if self.state == ProcessState.RUNNING:
             os.kill(self.proc.pid, signal.SIGKILL)
 
-    def get_log(self):
-        return self.Config.get("stdout")
-
-    def handle_read(self):
+    def read_fd(self, fd_read, fd_log, name):
         # We should probably buffer it and only write if we have a \n
-        if self.Config.get("stdout") == 'None' and self.attached:
+        self.data = b''
+        if self.Config.get(name) == 'None' and self.attached:
             # We empty the pipe if we dont capture
-            self.data = os.read(self.stdout_read, 1000)
+            self.data = os.read(fd_read, 1000)
             self.data = b''
-
-        self.data = os.read(self.stdout_read, 1000)
-        if self.Config.get("stdout") != 'None':
-            os.write(self.stdout_log, self.data)
+        self.data = os.read(fd_read, 1000)
+        if self.Config.get(name) != 'None':
+            os.write(fd_log, self.data)
         # Here we will probably send it to the client
         if self.attached:
             print(self.data)
 
+    def handle_read(self):
+        for fd in self.fd_ready:
+            if fd == self.stdout_read:
+                self.read_fd(fd, self.stdout_log, 'stdout')
+            elif fd == self.stderr_read:
+                self.read_fd(fd, self.stderr_log, 'stderr')
+        self.fd_ready = []
+
     def get_fd(self):
-        return self.stdout_read
+        return self.stdout_read, self.stderr_read
 
     def attach(self):
         self.attached = True
 
     def detach(self):
         self.attached = False
+
+    def set_fd_ready(self, fd_ready):
+        self.fd_ready.append(fd_ready)
