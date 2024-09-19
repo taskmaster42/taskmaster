@@ -6,6 +6,7 @@ import time
 import datetime
 import signal
 import logging
+from Poller import Poller
 logger = logging.getLogger(__name__)
 TIMEOUT = 0.01
 
@@ -41,6 +42,8 @@ class MyProcess():
         self.attached = False
         self.th = threading.Thread(target=self.run, args=())
         self.fd_ready = []
+        self.lock = threading.Lock()
+    
 
     def open_pipe(self):
         self.stdin_read, self.stdin_write = os.pipe()
@@ -73,9 +76,17 @@ class MyProcess():
     def set_cwd(self):
         return self.Config.get('workingdir')
     
-    def set_umask(self):
-        return int (self.Config.get('umask'), 8)
     
+    def set_umask(self):
+        return int(self.Config.get('umask'), 8)
+    
+    def drain_pipe(self):
+        poller = Poller(1)
+        poller.register_process(self)
+        fd_r = poller.get_process_ready()
+        if fd_r != []:
+           self.handle_read()
+
     def run(self):
         logger.info(f"Spawned {self.name}")
         self.state = ProcessState.SPAWNED
@@ -99,13 +110,9 @@ class MyProcess():
         else:
             self.state = ProcessState.FINISH
 
-        # process is finished we empty the pipe if needed
-        if os.fstat(self.stdout_read).st_size > 0:
-            self.read_fd(self.stdout_read, self.stdout_log, 'stdout')
-        if os.fstat(self.stderr_read).st_size > 0:
-            self.read_fd(self.stderr_read, self.stderr_log, 'stderr')
-        
         expected = self.is_exit_expected()
+        self.drain_pipe()
+     
         logger.info(f"Process {self.name} has finished with {self.return_code}" +
                     f"({'expected' if expected else 'unexpected'})")
         self.q.put(f"{self.name}")
@@ -167,15 +174,24 @@ class MyProcess():
             print(self.data)
 
     def handle_read(self):
+        self.lock.acquire()
         for fd in self.fd_ready:
             if fd == self.stdout_read:
                 self.read_fd(fd, self.stdout_log, 'stdout')
             elif fd == self.stderr_read:
                 self.read_fd(fd, self.stderr_log, 'stderr')
         self.fd_ready = []
+        self.lock.release()
+
 
     def get_fd(self):
         return self.stdout_read, self.stderr_read
+
+    def get_status(self):
+        return self.state.value
+
+    def get_pid(self):
+        return self.proc.pid
 
     def attach(self):
         self.attached = True

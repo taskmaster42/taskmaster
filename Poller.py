@@ -3,9 +3,10 @@ TIMEOUT = 0.01
 
 
 class Poller():
-    def __init__(self) -> None:
+    def __init__(self, timeout=TIMEOUT) -> None:
         self._poll = select.poll()
         self.process_registered = {}
+        self.timeout = timeout
 
     def register_process(self, process):
         stdout, stderr = process.get_fd()
@@ -22,7 +23,7 @@ class Poller():
         self._poll.unregister(stderr)
 
     def get_process_ready(self):
-        fd_ready = self._poll.poll(TIMEOUT)
+        fd_ready = self._poll.poll(self.timeout)
         if len(fd_ready) == 0:
             return []
         process_ready = []

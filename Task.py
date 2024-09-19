@@ -41,6 +41,15 @@ class Task():
         process_history.pop(0)
         return False
 
+    def renew_process(self, process, q):
+        for i in range (0, len(self.process_list)):
+            if self.process_list[i].name == process.get_name():
+                self.process_list.pop(i)
+        new_process = MyProcess(self.config, process.get_name(),
+                             self.task_name, q)
+        self.process_list.append(new_process)
+        return new_process
+
     def recreate_process(self, process, q):
         if process.killed():
             return None
@@ -52,13 +61,20 @@ class Task():
             logging.info(f"gave yup {process.get_name()} entered a FATAL state, too many start retries too quickly")
             return None
         if self.config.get("autorestart") == AutoRestartType('true'):
-            return MyProcess(self.config, process.get_name(),
-                             self.task_name, q)
+            return self.renew_process(process, q)
         if self.process_history[process.get_name()] >\
                 self.config.get("startretries"):
             return None
         if not process.is_exit_expected() and\
                 self.config.get("autorestart") == AutoRestartType('unexpected'):
-            return MyProcess(self.config, process.get_name(),
-                             self.task_name, q)
+            return self.renew_process(process, q)
         return None
+
+
+
+    def get_status(self):
+        process_status = {}
+        for process in self.process_list:
+            process_status[process.get_name()] = [process.get_status(), process.get_pid()]
+
+        return process_status
