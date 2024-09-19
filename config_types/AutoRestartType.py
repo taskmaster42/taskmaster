@@ -5,7 +5,7 @@ class AutoRestartType():
             self.value = value
         else :
             if value not in known_type:
-                raise ValueError("unknown")
+                raise ValueError(f"unknown value got {value}")
             self.value = known_type[value]
 
     def get_value(self):

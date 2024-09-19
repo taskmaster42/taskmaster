@@ -70,6 +70,12 @@ class MyProcess():
             orig_env.update(new_env)
         return orig_env
 
+    def set_cwd(self):
+        return self.Config.get('workingdir')
+    
+    def set_umask(self):
+        return int (self.Config.get('umask'), 8)
+    
     def run(self):
         logger.info(f"Spawned {self.name}")
         self.state = ProcessState.SPAWNED
@@ -78,7 +84,9 @@ class MyProcess():
                                      stdin=self.stdin_read,
                                      stdout=self.stdout_write,
                                      stderr=self.stderr_write,
-                                     env=self.set_child_env())
+                                     env=self.set_child_env(),
+                                     cwd=self.set_cwd(),
+                                     umask=self.set_umask())
         self.state = ProcessState.RUNNING
         logger.info(f"Process {self.name} has entered a RUNNING" +
                     f" state with PID {self.proc.pid}")
@@ -96,7 +104,7 @@ class MyProcess():
             self.read_fd(self.stdout_read, self.stdout_log, 'stdout')
         if os.fstat(self.stderr_read).st_size > 0:
             self.read_fd(self.stderr_read, self.stderr_log, 'stderr')
-        self.clean_up()
+        
         expected = self.is_exit_expected()
         logger.info(f"Process {self.name} has finished with {self.return_code}" +
                     f"({'expected' if expected else 'unexpected'})")

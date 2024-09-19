@@ -10,7 +10,7 @@ class Config():
         "umask": (str, "000"),
         "workingdir": (str, os.getcwd()),
         "autostart": (bool, True),
-        "autorestart": (AutoRestartType, AutoRestartType('true')),
+        "autorestart": (AutoRestartType, AutoRestartType('unexpected')),
         "exitcodes": (ListIntegerType, ListIntegerType([0])),
         "startretries": (int, 3),
         "startsecs": (int, 1),
@@ -35,7 +35,6 @@ class Config():
 
         for key, value in self.authorized_key.items():
             if key not in self.config:
-                print(f"{key}")
                 self.config[key] = ConfigElement(self.authorized_key[key][1],
                                                 self.authorized_key[key][0])
 
