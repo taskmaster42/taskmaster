@@ -22,7 +22,6 @@ class FileManager():
     
 
     def close(self, fd_close):
-
         self.lock.acquire()
         for name, fd in self.current_file.items():
             if fd_close == fd["fd"]:
@@ -33,6 +32,5 @@ class FileManager():
                     break
         self.lock.release()
 
-    
 
 FileManager = FileManager()

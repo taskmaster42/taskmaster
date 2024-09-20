@@ -13,12 +13,15 @@ TIMEOUT = 0.01
 
 
 class ProcessState(Enum):
-    RUNNING = "RUNNING"
+    NOTSTARTED = "NOTSTARTED"
     SPAWNED = "SPAWNED"
+    STARTED = "STARTED"
+    RUNNING = "RUNNING"
     KILLED = "KILLED"
     STOPPED = "STOPPED"
     FAILED = "FAILED"
     FINISH = "FINISH"
+    
 
 
 class MyProcess():
@@ -43,7 +46,7 @@ class MyProcess():
                 #                           os.O_WRONLY | os.O_CREAT)
                 self.stderr_log = FileManager.open_file(Config.get("stderr"),
                                           os.O_WRONLY | os.O_CREAT)
-        self.state = None
+        self.state = ProcessState.NOTSTARTED
         self.got_killed = False
         self.attached = False
         self.th = threading.Thread(target=self.run, args=())
@@ -262,3 +265,7 @@ class MyProcess():
             self.stderr_log = self.update_log_output(new_config.get('stderr'), self.stderr_log)
         self.lock.release()
         self.Config = new_config
+
+
+    def set_started(self):
+        self.state = ProcessState.STARTED

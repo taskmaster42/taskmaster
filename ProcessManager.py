@@ -64,10 +64,13 @@ class ProcessManager:
                 self.add_process_to_history(process)
 
     
-    def start_all_process(self):
+    def start_all_process(self, first_launch=False):
         for _, process in self.process_list.items():
+            if first_launch and not process.Config.get('autostart'):
+                continue
             process.launch_process()
             self.add_process_to_history(process)
+
 
     def check_fatal(self, process_history):
         # here we will if we tried to restart process too quickly
@@ -108,7 +111,7 @@ class ProcessManager:
                 process.get_config_key("autorestart") == AutoRestartType('unexpected'):
             return True
         return False
-    
+
 
     def handle_process_stopped(self, process_name, poller):
         self.process_list[process_name].clean_up()
@@ -163,3 +166,15 @@ class ProcessManager:
 
         for _, process in to_clean.items():
             process.clean_up()
+    
+    def stop_process(self, process_name):
+        try:
+            self.process_list[process_name].stop()
+        except KeyError:
+            pass
+
+
+    def start_process(self, process_name):
+        if self.process_list[process_name].get_status() == ProcessState.NOTSTARTED:
+            self.process_list[process_name].set_started()
+            self.process_list[process_name].launch_process()

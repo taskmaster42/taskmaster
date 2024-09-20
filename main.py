@@ -87,7 +87,7 @@ def main():
     for _, task in task_list.items():
         process_manager.create_process_from_task(task)
     process_manager.register_process(poller)
-    process_manager.start_all_process()
+    process_manager.start_all_process(first_launch=True)
     
     do_reload = 0
     while True:
@@ -100,11 +100,12 @@ def main():
         if len(fd_ready) > 0:
             process_manager.handle_read_event(fd_ready)
         if do_reload % 100 == 0:
-            logger.debug("RELAOD")
             task_list = reload_conf('config_test_reload.yml',process_manager, 
                         task_list, poller)
         if do_reload >= 300:
-            break
+            process_manager.start_process('late_start:0')
+
+            # break
         do_reload += 1
     process_manager.stop_all(poller)
     
