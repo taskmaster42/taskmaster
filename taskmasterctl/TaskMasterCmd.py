@@ -54,6 +54,11 @@ status <name> <name>	Get status for multiple named processes
 status			Get all process status info"""
         if not self.commands.status(line):
             print(self.do_status.__doc__)
+    
+    def do_attach(self, line: str) -> None:
+        """attach"""
+        if not self.commands.attach(line):
+            print(self.do_attach.__doc__)
 
     do_EOF = do_exit
     do_q = do_quit

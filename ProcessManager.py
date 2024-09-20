@@ -19,6 +19,7 @@ class ProcessManager:
         self.process_history = {}
         self.process_history_last_restart = {}
         self.process_reloaded = {}
+        self.process_attached = None
         pass
 
     def add_process_to_history(self, process):
@@ -37,7 +38,7 @@ class ProcessManager:
     def stop_process_from_task(self, task):
         for _, process in self.process_list.items():
             if process.get_task_name() == task.get_task_name():
-                process.stop()
+                process.stop(keep=False)
                 # del self.process_history[process_name]
                 # del self.process_history_last_restart[process_name]
 
@@ -64,12 +65,11 @@ class ProcessManager:
                 self.add_process_to_history(process)
 
     
-    def start_all_process(self, first_launch=False):
-        for _, process in self.process_list.items():
+    def start_all_process(self, poller, first_launch=False):
+        for process_name, process in self.process_list.items():
             if first_launch and not process.Config.get('autostart'):
                 continue
-            process.launch_process()
-            self.add_process_to_history(process)
+            self.start_process(process_name, poller)
 
 
     def check_fatal(self, process_history):
@@ -114,8 +114,10 @@ class ProcessManager:
 
 
     def handle_process_stopped(self, process_name, poller):
-        self.process_list[process_name].clean_up()
+
+        self.process_list[process_name].join_thread()
         poller.remove_process(self.process_list[process_name])
+        self.process_list[process_name].clean_up()
 
         old_process = self.process_list[process_name]
         # special case for reloading conf => we launch new process with same name
@@ -138,9 +140,11 @@ class ProcessManager:
             self.process_list[new_process.get_name()] = new_process
             poller.register_process(new_process)
             new_process.launch_process()
-        else:
-            del self.process_list[process_name]
-
+        if not old_process.keep_process():
+            try:
+                del self.process_list[process_name]
+            except KeyError:
+                pass
        
     
     def register_process(self, poller):
@@ -156,13 +160,24 @@ class ProcessManager:
     def stop_all(self, poller):
         to_clean =  self.process_reloaded
         self.process_reloaded = {}
+        nb_stopped = 0
    
-        for _, process in self.process_list.items():
+        for process_name, process in self.process_list.items():
+            if self.process_list[process_name].get_status() != ProcessState.SPAWNED\
+            and self.process_list[process_name].get_status() != ProcessState.RUNNING\
+            and self.process_list[process_name].get_status() != ProcessState.STARTED:
+                continue
             process.stop_wait()
+            nb_stopped += 1
         
-        while self.process_list:
+        while nb_stopped:
             item = self.q.get()
-            self.handle_process_stopped(item, poller)
+            if item[0] == "DEAD":
+                self.handle_process_stopped(item[1], poller)
+            elif item[0] == "DELETEME":
+                self.forget_process(item[1])
+            # self.handle_process_stopped(item[1], poller)
+            nb_stopped -= 1
 
         for _, process in to_clean.items():
             process.clean_up()
@@ -174,7 +189,62 @@ class ProcessManager:
             pass
 
 
-    def start_process(self, process_name):
-        if self.process_list[process_name].get_status() == ProcessState.NOTSTARTED:
+    def start_process(self, process_name, poller):
+        if not process_name in self.process_list:
+            return
+        if self.process_list[process_name].get_status() != ProcessState.SPAWNED\
+            and self.process_list[process_name].get_status() != ProcessState.RUNNING\
+            and self.process_list[process_name].get_status() != ProcessState.STARTED:
+            try:
+                poller.remove_process(self.process_list[process_name])
+            except KeyError:
+                pass
+            old_process = self.process_list[process_name]
+            self.process_list[process_name] = self.process_list[process_name].clone()
+            poller.register_process(self.process_list[process_name])
+            self.add_process_to_history(self.process_list[process_name])
             self.process_list[process_name].set_started()
             self.process_list[process_name].launch_process()
+
+    def restart_process(self, process_name):
+        if  self.process_list[process_name].get_status() == ProcessState.NOTSTARTED:
+            self.process_list[process_name].launch_process()
+            return
+        if  self.process_list[process_name].get_status() != ProcessState.RUNNING:
+            return
+        
+        new_process = self.process_list[process_name].clone()
+        self.process_reloaded.update ({process_name:new_process})
+        self.process_list[process_name].stop()
+
+
+    def get_all_state(self):
+        status = {}
+        for process_name, process in self.process_list.items():
+            status[process_name] = [process.get_status().value, process.get_pid()]
+        return status
+    
+
+    def forget_process(self, process_name):
+        try:
+            del self.process_list[process_name]
+            del self.process_history[process_name]
+            del self.process_history_last_restart[process_name]
+        except KeyError:
+            pass
+
+
+    def attach(self, process_name):
+        self.process_attached = process_name
+        self.process_list[process_name].attach()
+
+    def detach(self, process_name):
+        self.process_attached = None
+        
+        self.process_list[process_name].detach()
+
+    def send_attached(self, cmd):
+        try:
+            self.process_list[self.process_attached].write_data(cmd)
+        except KeyError:
+            self.process_attached = None

@@ -9,20 +9,23 @@ class Poller():
         self.timeout = timeout
 
     def register_process(self, process):
+
         stdout, stderr = process.get_fd()
-        if stdout not in self.process_registered:
+        if stdout not in self.process_registered and stdout > 0:
             self.process_registered[stdout] = process.get_name()
             self._poll.register(stdout, select.EPOLLIN)
-        if stderr not in self.process_registered:
+        if stderr not in self.process_registered and stderr > 0:
             self.process_registered[stderr] = process.get_name()
             self._poll.register(stderr, select.EPOLLIN)
 
     def remove_process(self, process):
         stdout, stderr = process.get_fd()
+        try:
+            del self.process_registered[stdout]
 
-        del self.process_registered[stdout]
-
-        del self.process_registered[stderr]
+            del self.process_registered[stderr]
+        except KeyError:
+            return
         self._poll.unregister(stdout)
         self._poll.unregister(stderr)
 

@@ -11,7 +11,8 @@ from FileManager import FileManager
 logger = logging.getLogger(__name__)
 TIMEOUT = 0.01
 import getpass
-
+from HttpBuffer import HttpBuffer
+import select
 
 class ProcessState(Enum):
     NOTSTARTED = "NOTSTARTED"
@@ -26,6 +27,7 @@ class ProcessState(Enum):
 
 
 class MyProcess():
+
     def __init__(self, Config, name, task_name, q):
         self.Config = Config
         self.task_name = task_name
@@ -50,12 +52,19 @@ class MyProcess():
         self.state = ProcessState.NOTSTARTED
         self.got_killed = False
         self.attached = False
-        self.th = threading.Thread(target=self.run, args=())
         self.fd_ready = []
         self.lock = threading.Lock()
+        self.pid = -1
+        self.keep = True
+        self.start_first_time = not self.Config.get("autostart")
     
-
+    def join_thread(self):
+        self.th.join()
+    def is_first_launch(self):
+        return self.start_first_time
+    
     def clone(self):
+        self.start_first_time = False
         new_process = MyProcess(Config=self.Config, 
                                 task_name=self.task_name,
                                 name=self.name, 
@@ -77,9 +86,13 @@ class MyProcess():
         return self.name
 
     def write_data(self, data):
-        os.write(self.stdin_write, data.encode())
-
+        fd_r = select.select([self.stdin_write], [], [], 0.01)
+        if (len(fd_r) > 0):
+            os.write(self.stdin_write, data.encode())
+        else:
+            HttpBuffer.put_msg({"ERROR" : ["Cant write to process", ""]})
     def launch_process(self):
+        self.th = threading.Thread(target=self.run, args=())
         self.th.start()
 
     def start_suceed(self):
@@ -110,6 +123,9 @@ class MyProcess():
                 self.set_fd_ready(fd)
             self.handle_read()
 
+    def keep_process(self):
+        return self.keep
+
     def run(self):
         logger.info(f"Spawned {self.name}")
         self.state = ProcessState.SPAWNED
@@ -126,6 +142,7 @@ class MyProcess():
                                      cwd=self.set_cwd(),
                                      umask=self.set_umask(),
                                      user=user)
+        self.pid = self.proc.pid
         self.state = ProcessState.RUNNING
         logger.info(f"Process {self.name} has entered a RUNNING" +
                     f" state with PID {self.proc.pid}")
@@ -143,15 +160,25 @@ class MyProcess():
      
         logger.info(f"Process {self.name} has finished with {self.return_code}" +
                     f"({'expected' if expected else 'unexpected'})")
-        self.q.put(f"{self.name}")
-
+        self.q.put(["DEAD", f"{self.name}"])
+        
     def clean_up(self):
-        os.close(self.stderr_read)
-        os.close(self.stdout_read)
-        os.close(self.stdin_read)
-        os.close(self.stderr_write)
-        os.close(self.stdout_write)
-        os.close(self.stdin_write)
+        try:
+            os.close(self.stderr_read)
+            os.close(self.stdout_read)
+            os.close(self.stdin_read)
+            os.close(self.stderr_write)
+            os.close(self.stdout_write)
+            os.close(self.stdin_write)
+        except OSError:
+            return
+        self.stderr_read = -1
+        self.stdout_read = -1
+        self.stdin_read = -1
+        self.stderr_write = -1
+        self.stdout_write = -1
+        self.stdin_write = -1
+     
 
         if self.Config.get("stdout") != 'None':
             FileManager.close(self.stdout_log)
@@ -171,12 +198,14 @@ class MyProcess():
         th.start()
         th.join()
     
-    def stop(self):
+    def stop(self, keep=True):
+        self.keep = keep
         th = threading.Thread(target=self._stop)
         th.start()
 
     def _stop(self):
         if self.state != ProcessState.RUNNING:
+            self.q.put(["DELETEME", self.name])
             return
         logger.info(f"Killing {self.name} with" +
                     f"{self.Config.get('stopsignal').get_num()}")
@@ -204,12 +233,12 @@ class MyProcess():
         # self.data = os.read(fd_read, 65000)
 
         if self.Config.get(name) != 'None':
-
             len_wrote = os.write(fd_log, self.data)
 
         # Here we will probably send it to the client
         if self.attached:
-            print(self.data)
+            HttpBuffer.put_msg({"return" :[self.data.decode(), ""]})
+            # print(self.data)
         self.data = b''
         
 
@@ -231,7 +260,7 @@ class MyProcess():
         return self.state
 
     def get_pid(self):
-        return self.proc.pid
+        return self.pid
 
     def attach(self):
         self.attached = True
