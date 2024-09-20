@@ -7,6 +7,7 @@ import datetime
 import signal
 import logging
 from Poller import Poller
+from FileManager import FileManager
 logger = logging.getLogger(__name__)
 TIMEOUT = 0.01
 
@@ -29,13 +30,18 @@ class MyProcess():
         self.name = name
         self.q = q
         if Config.get("stdout") != 'None':
-            self.stdout_log = os.open(Config.get("stdout"),
+            self.stdout_log = FileManager.open_file(Config.get("stdout"),
                                       os.O_WRONLY | os.O_CREAT)
+
+            # self.stdout_log = os.open(Config.get("stdout"),
+            #                           os.O_WRONLY | os.O_CREAT)
         if Config.get("stderr") != 'None':
             if Config.get("stderr") == Config.get("stdout"):
                 self.stderr_log = self.stdout_log
             else:
-                self.stderr_log = os.open(Config.get("stderr"),
+                # self.stderr_log = os.open(Config.get("stderr"),
+                #                           os.O_WRONLY | os.O_CREAT)
+                self.stderr_log = FileManager.open_file(Config.get("stderr"),
                                           os.O_WRONLY | os.O_CREAT)
         self.state = None
         self.got_killed = False
@@ -95,11 +101,9 @@ class MyProcess():
         poller = Poller(1)
         poller.register_process(self)
         fd_r = poller.get_process_ready()
-        print(fd_r)
         if fd_r != []:
             for _, fd in fd_r.items():
                 self.set_fd_ready(fd)
-                print(fd)
             self.handle_read()
 
     def run(self):
@@ -132,7 +136,6 @@ class MyProcess():
                     f"({'expected' if expected else 'unexpected'})")
         self.q.put(f"{self.name}")
 
-
     def clean_up(self):
         os.close(self.stderr_read)
         os.close(self.stdout_read)
@@ -140,10 +143,11 @@ class MyProcess():
         os.close(self.stderr_write)
         os.close(self.stdout_write)
         os.close(self.stdin_write)
+
         if self.Config.get("stdout") != 'None':
-            os.close(self.stdout_log)
+            FileManager.close(self.stdout_log)
         if self.Config.get("stderr") != 'None' and self.Config.get("stderr") != self.Config.get("stdout"):
-            os.close(self.stderr_log)
+            FileManager.close(self.stderr_log)
 
     def killed(self):
         return self.got_killed
@@ -178,23 +182,27 @@ class MyProcess():
                 break
         if self.state == ProcessState.RUNNING:
             os.kill(self.proc.pid, signal.SIGKILL)
-
+    
         
 
     def read_fd(self, fd_read, fd_log, name):
         # We should probably buffer it and only write if we have a \n
-        self.data = b''
-        if self.Config.get(name) == 'None' and self.attached:
+        self.data = os.read(fd_read, 65000)
+        if self.Config.get(name) == 'None' and self.attached == False:
             # We empty the pipe if we dont capture
-            self.data = os.read(fd_read, 65000)
             self.data = b''
             return
-        self.data = os.read(fd_read, 65000)
+        # self.data = os.read(fd_read, 65000)
+
         if self.Config.get(name) != 'None':
-            os.write(fd_log, self.data)
+
+            len_wrote = os.write(fd_log, self.data)
+
         # Here we will probably send it to the client
         if self.attached:
             print(self.data)
+        self.data = b''
+        
 
     def handle_read(self):
         self.lock.acquire()
@@ -211,7 +219,7 @@ class MyProcess():
         return self.stdout_read, self.stderr_read
 
     def get_status(self):
-        return self.state.value
+        return self.state
 
     def get_pid(self):
         return self.proc.pid
@@ -225,3 +233,32 @@ class MyProcess():
     def set_fd_ready(self, fd_ready):
         for fd in fd_ready:
             self.fd_ready.append(fd)
+    
+    def get_task_name(self):
+        return self.task_name
+    
+
+    def update_log_output(self, new_log, log_fd):
+        # we discard output log
+        if new_log == None and log_fd != -1:
+            FileManager.close(log_fd)
+            return -1
+        # we had a discarded log but we want to capture it now
+        if log_fd == -1:
+            new_log = FileManager.open_file(new_log, os.O_WRONLY | os.O_CREAT)
+            return new_log
+        # New log file => we close the old one
+        new_log = FileManager.open_file(new_log, os.O_WRONLY | os.O_CREAT)
+        FileManager.close(log_fd)
+        return new_log
+
+    
+    def update_config(self, new_config):
+        self.lock.acquire()
+        
+        if self.Config.get('stdout') != new_config.get('stdout'):
+            self.stdout_log = self.update_log_output(new_config.get('stdout'), self.stdout_log)
+        if self.Config.get('stderr') != new_config.get('stderr'):
+            self.stderr_log = self.update_log_output(new_config.get('stderr'), self.stderr_log)
+        self.lock.release()
+        self.Config = new_config
