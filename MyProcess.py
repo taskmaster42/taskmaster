@@ -35,7 +35,7 @@ class MyProcess():
         self.q = q
         if Config.get("stdout") != 'None':
             self.stdout_log = FileManager.open_file(Config.get("stdout"),
-                                      os.O_WRONLY | os.O_CREAT)
+                                      os.O_WRONLY | os.O_CREAT | os.O_APPEND)
 
             # self.stdout_log = os.open(Config.get("stdout"),
             #                           os.O_WRONLY | os.O_CREAT)
@@ -46,7 +46,7 @@ class MyProcess():
                 # self.stderr_log = os.open(Config.get("stderr"),
                 #                           os.O_WRONLY | os.O_CREAT)
                 self.stderr_log = FileManager.open_file(Config.get("stderr"),
-                                          os.O_WRONLY | os.O_CREAT)
+                                          os.O_WRONLY | os.O_CREAT | os.O_APPEND)
         self.state = ProcessState.NOTSTARTED
         self.got_killed = False
         self.attached = False
@@ -254,10 +254,10 @@ class MyProcess():
             return -1
         # we had a discarded log but we want to capture it now
         if log_fd == -1:
-            new_log = FileManager.open_file(new_log, os.O_WRONLY | os.O_CREAT)
+            new_log = FileManager.open_file(new_log, os.O_WRONLY | os.O_CREAT | os.O_APPEND)
             return new_log
         # New log file => we close the old one
-        new_log = FileManager.open_file(new_log, os.O_WRONLY | os.O_CREAT)
+        new_log = FileManager.open_file(new_log, os.O_WRONLY | os.O_CREAT | os.O_APPEND)
         FileManager.close(log_fd)
         return new_log
 

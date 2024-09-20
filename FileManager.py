@@ -12,7 +12,7 @@ class FileManager():
         if file_name in self.current_file:
             self.current_file[file_name]["count"] += 1
         else:
-            new_fd = os.open(file_name, flags )
+            new_fd = os.open(file_name, flags)
             self.current_file[file_name] = {}
             self.current_file[file_name]["fd"] = new_fd
             self.current_file[file_name]["count"] = 1
