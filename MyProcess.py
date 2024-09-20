@@ -10,6 +10,7 @@ from Poller import Poller
 from FileManager import FileManager
 logger = logging.getLogger(__name__)
 TIMEOUT = 0.01
+import getpass
 
 
 class ProcessState(Enum):
@@ -113,13 +114,18 @@ class MyProcess():
         logger.info(f"Spawned {self.name}")
         self.state = ProcessState.SPAWNED
         self.time_started = datetime.datetime.now()
+        if os.geteuid() == 0:
+            user = self.Config.get('user')
+        else:
+            user = getpass.getuser()
         self.proc = subprocess.Popen(self.cmd,
                                      stdin=self.stdin_read,
                                      stdout=self.stdout_write,
                                      stderr=self.stderr_write,
                                      env=self.set_child_env(),
                                      cwd=self.set_cwd(),
-                                     umask=self.set_umask())
+                                     umask=self.set_umask(),
+                                     user=user)
         self.state = ProcessState.RUNNING
         logger.info(f"Process {self.name} has entered a RUNNING" +
                     f" state with PID {self.proc.pid}")
