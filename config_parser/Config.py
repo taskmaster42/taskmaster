@@ -1,6 +1,7 @@
 from config_types import AutoRestartType, ListIntegerType, SignalType
 import os
 from .ConfigElement import ConfigElement
+import getpass
 
 
 class Config():
@@ -18,7 +19,8 @@ class Config():
         "stdout": (str, None),
         "stderr": (str, None),
         "env": (dict, []),
-        "stopsignal": (SignalType, SignalType("SIGKILL"))
+        "stopsignal": (SignalType, SignalType("SIGKILL")),
+        "user": (str, getpass.getuser())
     }
 
     def __init__(self, config_file):
