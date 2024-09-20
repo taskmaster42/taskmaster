@@ -1,6 +1,7 @@
 from config_types import AutoRestartType, ListIntegerType, SignalType
 import os
 from .ConfigElement import ConfigElement
+import getpass
 
 
 class Config():
@@ -10,15 +11,16 @@ class Config():
         "umask": (str, "000"),
         "workingdir": (str, os.getcwd()),
         "autostart": (bool, True),
-        "autorestart": (AutoRestartType, AutoRestartType('true')),
+        "autorestart": (AutoRestartType, AutoRestartType('unexpected')),
         "exitcodes": (ListIntegerType, ListIntegerType([0])),
         "startretries": (int, 3),
         "startsecs": (int, 1),
         "stopwaitsecs": (int, 10),
         "stdout": (str, None),
         "stderr": (str, None),
-        "env": (dict, None),
-        "stopsignal": (SignalType, SignalType("SIGKILL"))
+        "env": (dict, []),
+        "stopsignal": (SignalType, SignalType("SIGKILL")),
+        "user": (str, getpass.getuser())
     }
 
     def __init__(self, config_file):
@@ -35,10 +37,21 @@ class Config():
 
         for key, value in self.authorized_key.items():
             if key not in self.config:
-                self.config[key] = self.authorized_key[key][1]
+                self.config[key] = ConfigElement(self.authorized_key[key][1],
+                                                self.authorized_key[key][0])
 
         if "cmd" not in self.config:
             raise AssertionError("No cmd provided")
 
     def get(self, key):
         return self.config[key].get_value()
+
+    def __eq__(self, value: object) -> bool:
+        for key, v in self.config.items():
+            try:
+                if v != value.config.get(key):
+                    return False
+            except Exception as e:
+                    
+                    return False
+        return True
