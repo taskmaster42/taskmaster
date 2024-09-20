@@ -20,11 +20,6 @@ class TaskMasterCmd(Cmd):
         if not self.commands.quit(line):
             print(self.do_quit.__doc__)
 
-    def do_reload(self, line: str) -> None:
-        """reload 		Restart the remote supervisord."""
-        if not self.commands.reload(line.split()):
-            print(self.do_reload.__doc__)
-
     def do_restart(self, line: str) -> None:
         """restart <name>		Restart a process
 restart <name> <name>	Restart multiple processes or groups
