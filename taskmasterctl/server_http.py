@@ -3,7 +3,7 @@ import socketserver
 import sys
 import threading
 import json
-import time
+import urllib.parse
 
 dummy_data = {
     "cat:cat_0a": ["RUNNING", "12345"],
@@ -35,6 +35,7 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Content-type", "text/html")
         self.end_headers()
 
+        post_data = urllib.parse.unquote(post_data)
         command, process = post_data.split("=")
 
         data = dict(filter(lambda x: process in x[0], dummy_data.items()))
@@ -59,7 +60,9 @@ def main():
         t = threading.Thread(target=httpd.serve_forever, daemon=False)
         t.start()
 
-        time.sleep(100)
+        input("Press Enter to stop the server\n")
+        httpd.shutdown()
+        t.join()
 
 
 if __name__ == "__main__":
