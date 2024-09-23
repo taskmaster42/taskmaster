@@ -1,6 +1,6 @@
 import http.server
 import socketserver
-import sys
+import socket
 import threading
 import json
 import urllib.parse
@@ -12,6 +12,7 @@ from HttpBuffer import HttpBuffer
 
 import logging
 logger = logging.getLogger(__name__)
+
 
 class MyHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
@@ -35,13 +36,14 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
         command, process = post_data.split("=")
         process = urllib.parse.unquote(process)
         if command != "ping":
-            MyQueue.put(Event (command, process))
-        
+            MyQueue.put(Event(command, process))
+
         data = HttpBuffer.get_msg(timeout=0.1)
         self.wfile.write(json.dumps(data).encode('utf-8'))
-    
+
     def log_message(self, format, *args):
         pass
+
 
 class Myserver():
     def __init__(self) -> None:
@@ -49,7 +51,8 @@ class Myserver():
 
     def launch_server(self, port):
         server_address = ("", port)
-        self.httpd =  socketserver.TCPServer(server_address, MyHandler)
+        self.httpd = socketserver.TCPServer(server_address, MyHandler)
+        self.httpd.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         t = threading.Thread(target=self.httpd.serve_forever)
         t.start()
         logger.info(f"Serving HTTP on port {port}")
