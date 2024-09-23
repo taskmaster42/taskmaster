@@ -38,7 +38,7 @@ class Config():
         for key, value in self.authorized_key.items():
             if key not in self.config:
                 self.config[key] = ConfigElement(self.authorized_key[key][1],
-                                                self.authorized_key[key][0])
+                                                 self.authorized_key[key][0])
 
         if "cmd" not in self.config:
             raise AssertionError("No cmd provided")
@@ -51,7 +51,6 @@ class Config():
             try:
                 if v != value.config.get(key):
                     return False
-            except Exception as e:
-                    
-                    return False
+            except Exception:
+                return False
         return True
