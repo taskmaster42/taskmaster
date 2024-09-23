@@ -55,6 +55,13 @@ class MyProcess():
         self.lock = threading.Lock()
         self.pid = -1
         self.keep = True
+        self.user = self.Config.get('user')
+        try:
+            pwd.getpwnam(self.user)
+        except KeyError:
+            raise ValueError(f"User {self.user} not found")
+        if os.geteuid() != 0:
+            self.user = getpass.getuser()
 
     def join_thread(self):
         self.th.join()
@@ -125,12 +132,6 @@ class MyProcess():
         logger.info(f"Spawned {self.name}")
         self.state = ProcessState.SPAWNED
         self.time_started = datetime.datetime.now()
-        if os.geteuid() == 0 and pwd.getpwnam(self.Config.get('user')):
-            user = self.Config.get('user')
-        else:
-            if os.geteuid() == 0:
-                logger.warning(f"User {self.Config.get('user')} not found")
-            user = getpass.getuser()
         self.proc = subprocess.Popen(self.cmd,
                                      stdin=self.stdin_read,
                                      stdout=self.stdout_write,
@@ -138,7 +139,7 @@ class MyProcess():
                                      env=self.set_child_env(),
                                      cwd=self.set_cwd(),
                                      umask=self.set_umask(),
-                                     user=user)
+                                     user=self.user)
         self.pid = self.proc.pid
         self.state = ProcessState.RUNNING
         logger.info(f"Process {self.name} has entered a RUNNING" +
