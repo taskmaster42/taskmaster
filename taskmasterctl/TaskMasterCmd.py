@@ -60,5 +60,10 @@ status			Get all process status info"""
         if not self.commands.attach(line):
             print(self.do_attach.__doc__)
 
+    def do_debug(self, line: str) -> None:
+        """debug"""
+        if not self.commands.debug(line):
+            print(self.do_attach.__doc__)
+
     do_EOF = do_exit
     do_q = do_quit

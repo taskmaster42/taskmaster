@@ -13,6 +13,7 @@ TIMEOUT = 0.01
 import getpass
 from HttpBuffer import HttpBuffer
 import select
+from Event import Event, EventType
 
 class ProcessState(Enum):
     NOTSTARTED = "NOTSTARTED"
@@ -60,6 +61,7 @@ class MyProcess():
     
     def join_thread(self):
         self.th.join()
+
     def is_first_launch(self):
         return self.start_first_time
     
@@ -91,6 +93,7 @@ class MyProcess():
             os.write(self.stdin_write, data.encode())
         else:
             HttpBuffer.put_msg({"ERROR" : ["Cant write to process", ""]})
+    
     def launch_process(self):
         self.th = threading.Thread(target=self.run, args=())
         self.th.start()
@@ -160,7 +163,7 @@ class MyProcess():
      
         logger.info(f"Process {self.name} has finished with {self.return_code}" +
                     f"({'expected' if expected else 'unexpected'})")
-        self.q.put(["DEAD", f"{self.name}"])
+        self.q.put(Event (EventType.DEAD, f"{self.name}"))
         
     def clean_up(self):
         try:
@@ -205,7 +208,8 @@ class MyProcess():
 
     def _stop(self):
         if self.state != ProcessState.RUNNING:
-            self.q.put(["DELETEME", self.name])
+            if not self.keep:
+                self.q.put(Event(EventType.DELETE, self.name))
             return
         logger.info(f"Killing {self.name} with" +
                     f"{self.Config.get('stopsignal').get_num()}")
@@ -231,6 +235,7 @@ class MyProcess():
             self.data = b''
             return
         # self.data = os.read(fd_read, 65000)
+        # print(len(self.data))
 
         if self.Config.get(name) != 'None':
             len_wrote = os.write(fd_log, self.data)
@@ -238,7 +243,6 @@ class MyProcess():
         # Here we will probably send it to the client
         if self.attached:
             HttpBuffer.put_msg({"return" :[self.data.decode(), ""]})
-            # print(self.data)
         self.data = b''
         
 

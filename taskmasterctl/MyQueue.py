@@ -11,5 +11,9 @@ class MyQueue():
     def put(self, item):
         self.q.put(item)
 
+    def get_nowait(self):
+        return self.q.get_nowait()
+    
+
 
 MyQueue = MyQueue()

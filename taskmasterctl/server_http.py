@@ -4,7 +4,7 @@ import sys
 import threading
 import json
 import urllib.parse
-
+from Event import Event
 
 from taskmasterctl.MyQueue import MyQueue
 
@@ -51,7 +51,7 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
         command, process = post_data.split("=")
         process = urllib.parse.unquote(process)
         if command != "ping":
-            MyQueue.put([command, process])
+            MyQueue.put(Event (command, process))
         
         data = HttpBuffer.get_msg(timeout=0.1)
         # data = dict(filter(lambda x: process in x[0], dummy_data.items()))
@@ -61,16 +61,22 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             print(f"Received command: {command} on {process}")
         self.wfile.write(json.dumps(data).encode('utf-8'))
 
+class Myserver():
+    def __init__(self) -> None:
+        self.httpd = None
 
-def launch_server(port):
-    
-    server_address = ("", port)
-    httpd =  socketserver.TCPServer(server_address, MyHandler)
-    # with socketserver.TCPServer(server_address, MyHandler) as httpd:
-    print(f"Serving HTTP on port {port}")
-    t = threading.Thread(target=httpd.serve_forever)
-    t.start()
-    print(f"Serving HTTP on port {port}")
+    def launch_server(self, port):
+        
+        server_address = ("", port)
+        self.httpd =  socketserver.TCPServer(server_address, MyHandler)
+        # with socketserver.TCPServer(server_address, MyHandler) as httpd:
+        print(f"Serving HTTP on port {port}")
+        t = threading.Thread(target=self.httpd.serve_forever)
+        t.start()
+        print(f"Serving HTTP on port {port}")
 
-        # httpd.shutdown()
-        # t.join()
+            # httpd.shutdown()
+            # t.join()
+    def stop_server(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()

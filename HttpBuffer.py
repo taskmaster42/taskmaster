@@ -7,6 +7,7 @@ class HttpBuffer():
         self.data = []
 
     def put_msg(self, msg):
+        
         self.data.append(msg)
         os.write(self.fd_w,b"YO")
     
@@ -14,7 +15,9 @@ class HttpBuffer():
         fd_r, _, _ = select.select([self.fd_r], [], [], timeout)
         if len(fd_r) > 0:
             _ = os.read(self.fd_r, 2)
-            return self.data.pop(0)
+            ret = self.data.pop(0)
+
+            return ret
         else:
             return {}
 HttpBuffer = HttpBuffer()

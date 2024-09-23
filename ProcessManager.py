@@ -2,7 +2,6 @@ from MyProcess import MyProcess, ProcessState
 
 from Poller import Poller
 
-import queue
 import datetime
 import logging
 
@@ -114,7 +113,6 @@ class ProcessManager:
 
 
     def handle_process_stopped(self, process_name, poller):
-
         self.process_list[process_name].join_thread()
         poller.remove_process(self.process_list[process_name])
         self.process_list[process_name].clean_up()
@@ -136,12 +134,14 @@ class ProcessManager:
 
         if self.need_restart(old_process):
             new_process = old_process.clone()
+            self.process_list[process_name] = None
             del self.process_list[process_name]
             self.process_list[new_process.get_name()] = new_process
             poller.register_process(new_process)
             new_process.launch_process()
         if not old_process.keep_process():
             try:
+                self.process_list[process_name] = None
                 del self.process_list[process_name]
             except KeyError:
                 pass
@@ -158,29 +158,8 @@ class ProcessManager:
             self.process_list[process_name].handle_read()
 
     def stop_all(self, poller):
-        to_clean =  self.process_reloaded
-        self.process_reloaded = {}
-        nb_stopped = 0
-   
-        for process_name, process in self.process_list.items():
-            if self.process_list[process_name].get_status() != ProcessState.SPAWNED\
-            and self.process_list[process_name].get_status() != ProcessState.RUNNING\
-            and self.process_list[process_name].get_status() != ProcessState.STARTED:
-                continue
-            process.stop_wait()
-            nb_stopped += 1
-        
-        while nb_stopped:
-            item = self.q.get()
-            if item[0] == "DEAD":
-                self.handle_process_stopped(item[1], poller)
-            elif item[0] == "DELETEME":
-                self.forget_process(item[1])
-            # self.handle_process_stopped(item[1], poller)
-            nb_stopped -= 1
-
-        for _, process in to_clean.items():
-            process.clean_up()
+        for _, process in self.process_list.items():
+            process.stop()
     
     def stop_process(self, process_name):
         try:
@@ -192,19 +171,19 @@ class ProcessManager:
     def start_process(self, process_name, poller):
         if not process_name in self.process_list:
             return
-        if self.process_list[process_name].get_status() != ProcessState.SPAWNED\
-            and self.process_list[process_name].get_status() != ProcessState.RUNNING\
-            and self.process_list[process_name].get_status() != ProcessState.STARTED:
-            try:
-                poller.remove_process(self.process_list[process_name])
-            except KeyError:
-                pass
-            old_process = self.process_list[process_name]
-            self.process_list[process_name] = self.process_list[process_name].clone()
-            poller.register_process(self.process_list[process_name])
-            self.add_process_to_history(self.process_list[process_name])
-            self.process_list[process_name].set_started()
-            self.process_list[process_name].launch_process()
+        if self.process_list[process_name].get_status() != ProcessState.NOTSTARTED\
+            and self.process_list[process_name].get_status() != ProcessState.KILLED\
+            and self.process_list[process_name].get_status() != ProcessState.STOPPED:
+                return
+        old_process = self.process_list[process_name] 
+        self.process_list[process_name] = self.process_list[process_name].clone()
+        poller.register_process(self.process_list[process_name])
+        self.add_process_to_history(self.process_list[process_name])
+        self.process_list[process_name].set_started()
+        self.process_list[process_name].launch_process()
+
+        old_process.clean_up()
+        del old_process
 
     def restart_process(self, process_name):
         if  self.process_list[process_name].get_status() == ProcessState.NOTSTARTED:
@@ -235,12 +214,13 @@ class ProcessManager:
 
 
     def attach(self, process_name):
+        if self.process_attached is not None:
+            self.process_list[self.process_attached].detach()
         self.process_attached = process_name
         self.process_list[process_name].attach()
 
     def detach(self, process_name):
         self.process_attached = None
-        
         self.process_list[process_name].detach()
 
     def send_attached(self, cmd):
@@ -248,3 +228,15 @@ class ProcessManager:
             self.process_list[self.process_attached].write_data(cmd)
         except KeyError:
             self.process_attached = None
+        except (OSError, ValueError):
+            self.process_attached = None
+            logger.info(f"Error while sending command to {self.process_attached}")
+
+    def check_process_exist(self, process_name):
+        return process_name in self.process_list
+    
+
+    def kill_all(self, poller):
+        for process_name, process in self.process_list.items():
+            process.stop()
+            process.clean_up()

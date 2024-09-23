@@ -69,13 +69,13 @@ class Commands:
 
         confirmation = input("Are you sure you want to update the remote taskmaster? y/N? ")
         if confirmation.lower() == "y":
-            self._send("update", "")
+            self._send("update", "all")
             print("Updated taskmaster.")
         return True
 
     def status(self, args):
         if (args == ""):
-            self._send("status", "")
+            self._send("status", "all")
         else:
             for process in args.split():
                 self._send("status", process)
@@ -88,7 +88,6 @@ class Commands:
             fd_r, _, _ = select.select([sys.stdin], [], [], 1)
             if len(fd_r) > 0:
                 _line = sys.stdin.readline()
-
                 cmd +=_line
                 if "\n" in cmd:
                     if "exit" in cmd:
@@ -98,7 +97,15 @@ class Commands:
                     cmd = ""
             else:
                 self._send("ping", "yo")
-
+    
+    def debug(self, args):
+        if (args == ""):
+            self._send("debug", "all")
+        else:
+            for process in args.split():
+                self._send("debug", process)
+        return True
+    
 
 # reload    YES     (no value returned)
 # restart   YES     (return all the process affected)

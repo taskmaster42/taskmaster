@@ -13,10 +13,10 @@ class Poller():
         stdout, stderr = process.get_fd()
         if stdout not in self.process_registered and stdout > 0:
             self.process_registered[stdout] = process.get_name()
-            self._poll.register(stdout, select.EPOLLIN)
+            self._poll.register(stdout, select.POLLIN)
         if stderr not in self.process_registered and stderr > 0:
             self.process_registered[stderr] = process.get_name()
-            self._poll.register(stderr, select.EPOLLIN)
+            self._poll.register(stderr, select.POLLIN)
 
     def remove_process(self, process):
         stdout, stderr = process.get_fd()

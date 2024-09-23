@@ -2,6 +2,7 @@ from MyProcess import MyProcess
 from config_parser import Config
 import datetime
 import logging
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -49,3 +50,12 @@ class Task():
     
     def get_config(self):
         return self.config
+    
+
+def get_task_from_config_file(config_name):
+    with open(config_name, 'r') as file:
+        config = yaml.safe_load(file)
+    task_list = {}
+    for task_name, config in config["programs"].items():
+        task_list[task_name] = Task(task_name, config)
+    return task_list
