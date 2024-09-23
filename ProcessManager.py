@@ -101,8 +101,8 @@ class ProcessManager:
 
     def handle_process_stopped(self, process_name, poller):
 
-        self.process_list[process_name].join_thread()
         self.process_list[process_name].drain_pipe()
+        self.process_list[process_name].join_thread()
         poller.remove_process(self.process_list[process_name])
         self.process_list[process_name].clean_up()
 
@@ -161,7 +161,8 @@ class ProcessManager:
             ProcessState.NOTSTARTED,
             ProcessState.KILLED,
             ProcessState.STOPPED,
-            ProcessState.FINISH
+            ProcessState.FINISH,
+            ProcessState.FAILED
         ]:
             return
         old_process = self.process_list[process_name]
@@ -171,7 +172,7 @@ class ProcessManager:
         self.process_list[process_name].set_started()
         self.process_list[process_name].launch_process()
 
-        old_process.clean_up()
+        # old_process.clean_up()
         del old_process
 
     def restart_process(self, process_name):

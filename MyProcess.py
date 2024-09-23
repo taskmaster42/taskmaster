@@ -117,6 +117,7 @@ class MyProcess():
         return int(self.Config.get('umask'), 8)
 
     def drain_pipe(self):
+        print("Draining pipe")
         poller = Poller(1)
         poller.register_process(self)
         fd_r = poller.get_process_ready()
@@ -132,7 +133,8 @@ class MyProcess():
         logger.info(f"Spawned {self.name}")
         self.state = ProcessState.SPAWNED
         self.time_started = datetime.datetime.now()
-        self.proc = subprocess.Popen(self.cmd,
+        try:
+            self.proc = subprocess.Popen(self.cmd,
                                      stdin=self.stdin_read,
                                      stdout=self.stdout_write,
                                      stderr=self.stderr_write,
@@ -140,6 +142,11 @@ class MyProcess():
                                      cwd=self.set_cwd(),
                                      umask=self.set_umask(),
                                      user=self.user)
+        except Exception as e:
+            logger.error(f"Error while spawning {self.name}: {e}")
+            self.state = ProcessState.FAILED
+            self.q.put(Event(EventType.DEAD, f"{self.name}"))
+            return
         self.pid = self.proc.pid
         self.state = ProcessState.RUNNING
         logger.info(f"Process {self.name} has entered a RUNNING" +
@@ -230,6 +237,7 @@ class MyProcess():
 
     def handle_read(self):
         self.lock.acquire()
+        print(self.fd_ready)
         for fd in self.fd_ready:
             if fd == self.stdout_read:
                 self.read_fd(fd, self.stdout_log, 'stdout')
