@@ -40,7 +40,8 @@ class Task():
             "cmd",
             "workingdir",
             "env",
-            "umask"
+            "umask",
+            "user"
         ]
         if new_task.config.get('numprocs') < self.config.get('numprocs'):
             return True
