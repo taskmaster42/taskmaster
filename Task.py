@@ -10,6 +10,10 @@ class Task():
     def __init__(self, task_name, config_file):
         self.task_name = task_name
         self.config = Config(config_file)
+        if (self.task_name == ""):
+            raise ValueError("Task name cannot be empty")
+        if not self.task_name.isalnum():
+            raise ValueError(f'Task name "{task_name}" must be alphanumeric')
 
     def __eq__(self, value: object) -> bool:
         return self.config == value.config
@@ -38,7 +42,7 @@ class Task():
             "env",
             "umask"
         ]
-        if not self.numproc_went_up(new_task):
+        if new_task.config.get('numprocs') < self.config.get('numprocs'):
             return True
         for key in key_change_despawn:
             if self.config.get(key) != new_task.config.get(key):
