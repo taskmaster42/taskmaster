@@ -32,6 +32,9 @@ class Config():
             if value is None:
                 raise ValueError(f"Got None for key {key}")
 
+            if (key == "env"):
+                value = {key: str(val) for key, val in value.items()}
+
             self.config[key] = ConfigElement(value,
                                              (self.authorized_key[key][0]))
 
