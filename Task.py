@@ -1,6 +1,5 @@
 from MyProcess import MyProcess
 from config_parser import Config
-import datetime
 import logging
 import yaml
 
@@ -29,10 +28,8 @@ class Task():
     def get_task_name(self):
         return self.task_name
 
-
     def numproc_went_up(self, new_task):
         return new_task.config.get('numprocs') > self.config.get('numprocs')
-    
 
     def need_despawn(self, new_task):
         key_change_despawn = [
@@ -47,10 +44,10 @@ class Task():
             if self.config.get(key) != new_task.config.get(key):
                 return True
         return False
-    
+
     def get_config(self):
         return self.config
-    
+
 
 def get_task_from_config_file(config_name):
     with open(config_name, 'r') as file:

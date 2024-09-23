@@ -19,7 +19,6 @@ class ProcessManager:
         self.process_history_last_restart = {}
         self.process_reloaded = {}
         self.process_attached = None
-        pass
 
     def add_process_to_history(self, process):
         self.process_history[process.get_name()] = 0
@@ -234,9 +233,3 @@ class ProcessManager:
 
     def check_process_exist(self, process_name):
         return process_name in self.process_list
-    
-
-    def kill_all(self, poller):
-        for process_name, process in self.process_list.items():
-            process.stop()
-            process.clean_up()

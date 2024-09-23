@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 TIMEOUT = 0.01
 
-import gc
 import sys
 
 from taskmasterctl.MyQueue import MyQueue
@@ -30,13 +29,13 @@ RUNNING = True
 def stop_loop(signum, __):
     global RUNNING
     RUNNING = False
-    print(f"Received signal {signum}. Exiting...")
+    logger.info(f"Received signal {signum}")
 
 def set_up_sig():
     catchable_sigs = set(signal.Signals) - {signal.SIGKILL, signal.SIGSTOP}
     for sig in catchable_sigs:
         if sig != signal.SIGCHLD:
-            signal.signal(sig, stop_loop)  # Substitute handler of choice for `print`
+            signal.signal(sig, stop_loop)
 
 def handle_cmd(event, process_manager, poller, task_list):
     cmd = event.get_cmd()
@@ -89,7 +88,6 @@ def run():
 
     process_manager.start_all_process(poller, first_launch=True)
     
-    do_reload = 0
     while RUNNING:
         try:
             item = q.get_nowait()
@@ -97,7 +95,6 @@ def run():
                 process_manager.handle_process_stopped(item.get_args(), poller)
             elif item.get_cmd() == EventType.DELETE:
                 process_manager.forget_process(item.get_args())
-
             else:
                 task_list = handle_cmd(item, process_manager, poller, task_list)
         except queue.Empty:
@@ -105,7 +102,6 @@ def run():
         fd_ready = poller.get_process_ready()
         if len(fd_ready) > 0:
             process_manager.handle_read_event(fd_ready)
-        do_reload += 1
     
     process_manager.stop_all(poller)
     serv.stop_server()

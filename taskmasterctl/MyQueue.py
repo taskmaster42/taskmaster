@@ -7,13 +7,11 @@ class MyQueue():
 
     def get(self, timeout=None):
         return self.q.get(timeout=timeout)
-    
     def put(self, item):
         self.q.put(item)
 
     def get_nowait(self):
         return self.q.get_nowait()
-    
 
 
 MyQueue = MyQueue()

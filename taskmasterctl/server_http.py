@@ -43,10 +43,8 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Content-type", "text/html")
         self.end_headers()
 
-        # post_data = urllib.parse.quote(post_data)
         post_data = urllib.parse.unquote(post_data)
         post_data = post_data.replace('+', ' ')
-        # post_data = urllib.parse.quo(post_data)
 
         command, process = post_data.split("=")
         process = urllib.parse.unquote(process)

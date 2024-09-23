@@ -16,10 +16,9 @@ class FileManager():
             self.current_file[file_name] = {}
             self.current_file[file_name]["fd"] = new_fd
             self.current_file[file_name]["count"] = 1
-        
+
         self.lock.release()
         return self.current_file[file_name]["fd"]
-    
 
     def close(self, fd_close):
         self.lock.acquire()

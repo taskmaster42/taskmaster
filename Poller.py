@@ -1,5 +1,6 @@
 import select
-TIMEOUT = 0.01
+
+TIMEOUT = 10 # milliseconds
 
 
 class Poller():
@@ -41,9 +42,3 @@ class Poller():
                  process_ready[self.process_registered[fd[0]]] = [fd[0]]
             # self.process_registered[fd[0]].set_fd_ready(fd[0])
         return process_ready
-
-
-    def clear(self):
-        for key , process in self.process_registered.items():
-            self._poll.unregister(key)
-        self.process_registered = {}
