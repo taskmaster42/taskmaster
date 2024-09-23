@@ -12,13 +12,11 @@ class TaskMasterCmd(Cmd):
 
     def do_exit(self, line: str) -> bool:
         """exit	Exit the supervisor shell."""
-        if not self.commands.exit(line):
-            print(self.do_exit.__doc__)
+        return self.commands.exit(line)
 
     def do_quit(self, line: str) -> bool:
         """exit	Exit the supervisor shell."""
-        if not self.commands.quit(line):
-            print(self.do_quit.__doc__)
+        return self.commands.quit(line)
 
     def do_restart(self, line: str) -> None:
         """restart <name>		Restart a process
@@ -54,7 +52,7 @@ status <name> <name>	Get status for multiple named processes
 status			Get all process status info"""
         if not self.commands.status(line):
             print(self.do_status.__doc__)
-    
+
     def do_attach(self, line: str) -> None:
         """attach"""
         if not self.commands.attach(line):

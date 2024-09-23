@@ -3,7 +3,7 @@ class AutoRestartType():
         known_type = {'true': True, 'false': False, 'unexpected': 'unexpected'}
         if type(value) is AutoRestartType:
             self.value = value
-        else :
+        else:
             if value not in known_type:
                 raise ValueError(f"unknown value got {value}")
             self.value = known_type[value]

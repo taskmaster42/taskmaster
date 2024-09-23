@@ -1,56 +1,63 @@
-import yaml
-
 import queue
 import logging
-
 from Poller import Poller
 from Task import get_task_from_config_file
-
 from taskmasterctl.server_http import Myserver
+from taskmasterctl.MyQueue import MyQueue
+from ProcessManager import ProcessManager
+from HttpBuffer import HttpBuffer
+from Event import event_stop, \
+    event_start, \
+    event_restart, \
+    event_status, \
+    event_update, \
+    attach, \
+    detach, \
+    send_attached, \
+    debug, \
+    EventType
+import signal
+import argparse
 
 logger = logging.getLogger(__name__)
 
 TIMEOUT = 0.01
-
-import sys
-
-from taskmasterctl.MyQueue import MyQueue
-
-from ProcessManager import ProcessManager
-from HttpBuffer import HttpBuffer
-
-from Event import *
-
-import signal
-from taskmasterctl.server_http import Myserver
-
-import argparse
-
-
 RUNNING = True
+
 
 def stop_loop(signum, __):
     global RUNNING
     RUNNING = False
     logger.info(f"Received signal {signum}")
 
+
 def set_up_sig():
-    catchable_sigs = set(signal.Signals) - {signal.SIGKILL, signal.SIGSTOP}
+    catchable_sigs = {
+        signal.SIGTERM,
+        signal.SIGINT
+    }
     for sig in catchable_sigs:
-        if sig != signal.SIGCHLD:
-            signal.signal(sig, stop_loop)
+        signal.signal(sig, stop_loop)
+
 
 def handle_cmd(event, process_manager, poller, task_list):
     cmd = event.get_cmd()
     process = event.get_args()
     if process != "all"\
-        and cmd in ["debug", "stop", "start", "restart", "status", "update", "attach", "detach"]\
-        and not process_manager.check_process_exist(process):
+        and cmd in [
+            "debug",
+            "stop",
+            "start",
+            "restart",
+            "status",
+            "update",
+            "attach",
+            "detach"]\
+            and not process_manager.check_process_exist(process):
         logger.info(f"Unknown process {process}")
         HttpBuffer.put_msg(process_manager.get_all_state())
         return
- 
-    match cmd: 
+    match cmd:
         case "stop":
             event_stop(process, process_manager, poller)
         case "start":
@@ -60,7 +67,10 @@ def handle_cmd(event, process_manager, poller, task_list):
         case "status":
             event_status(process_manager)
         case "update":
-            process_manager, task_list = event_update(process_manager, task_list, poller)
+            process_manager, task_list = event_update(
+                process_manager,
+                task_list,
+                poller)
         case "attach":
             attach(process_manager, process)
         case "detach":
@@ -79,7 +89,7 @@ def run():
     parser = argparse.ArgumentParser()
     parser.add_argument("port", type=int)
     parser.add_argument("--config", type=str, default="config_test.yml")
-    parser.add_argument("--out", action="store_true", dest="output")
+    parser.add_argument("--silent", action="store_true", dest="output")
     parser.add_argument("--log", type=str, default="./taskmasterd.log")
     args = parser.parse_args()
 
@@ -87,7 +97,7 @@ def run():
     serv = Myserver()
 
     logging.basicConfig(level=logging.INFO, filename=args.log)
-    if args.output:
+    if not args.output:
         logging.getLogger().addHandler(logging.StreamHandler())
     serv.launch_server(args.port)
     try:
@@ -104,7 +114,7 @@ def run():
         process_manager.create_process_from_task(task)
 
     process_manager.start_all_process(poller, first_launch=True)
-    
+
     while RUNNING:
         try:
             item = q.get_nowait()
@@ -113,13 +123,17 @@ def run():
             elif item.get_cmd() == EventType.DELETE:
                 process_manager.forget_process(item.get_args())
             else:
-                task_list = handle_cmd(item, process_manager, poller, task_list)
+                task_list = handle_cmd(
+                    item,
+                    process_manager,
+                    poller,
+                    task_list)
         except queue.Empty:
             pass
         fd_ready = poller.get_process_ready()
         if len(fd_ready) > 0:
             process_manager.handle_read_event(fd_ready)
-    
+
     process_manager.stop_all(poller)
     serv.stop_server()
     logger.info("Exiting")

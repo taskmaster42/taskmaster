@@ -11,6 +11,7 @@ import threading
 import logging
 logger = logging.getLogger(__name__)
 
+
 class EventType(Enum):
     DEAD = "EventDead",
     DELETE = "EventDelete",

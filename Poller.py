@@ -1,6 +1,6 @@
 import select
 
-TIMEOUT = 10 # milliseconds
+TIMEOUT = 10  # milliseconds
 
 
 class Poller():
@@ -39,6 +39,5 @@ class Poller():
             if self.process_registered[fd[0]] in process_ready:
                 process_ready[self.process_registered[fd[0]]].append(fd[0])
             else:
-                 process_ready[self.process_registered[fd[0]]] = [fd[0]]
-            # self.process_registered[fd[0]].set_fd_ready(fd[0])
+                process_ready[self.process_registered[fd[0]]] = [fd[0]]
         return process_ready

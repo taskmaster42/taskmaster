@@ -1,14 +1,9 @@
-from MyProcess import MyProcess, ProcessState
-
-from Poller import Poller
-
+from MyProcess import ProcessState
 import datetime
 import logging
-
-
+from config_types import AutoRestartType
 
 logger = logging.getLogger(__name__)
-from config_types import AutoRestartType
 
 
 class ProcessManager:
@@ -22,24 +17,21 @@ class ProcessManager:
 
     def add_process_to_history(self, process):
         self.process_history[process.get_name()] = 0
-        self.process_history_last_restart[process.get_name()] = [datetime.datetime.now()]
-    
-    
-    def add_process_numproc_up(self, old_task, new_task):
+        current_time = datetime.datetime.now()
+        self.process_history_last_restart[process.get_name()] = [current_time]
+
+    def add_process_numproc_up(self, _, new_task):
         process_list = new_task.create_process_list(self.q)
         for process_name, process in process_list.items():
             if process_name not in self.process_list:
-                self.process_list.update({process_name:process})
+                self.process_list.update({process_name: process})
                 self.add_process_to_history(process)
                 process.launch_process()
-    
+
     def stop_process_from_task(self, task):
         for _, process in self.process_list.items():
             if process.get_task_name() == task.get_task_name():
                 process.stop(keep=False)
-                # del self.process_history[process_name]
-                # del self.process_history_last_restart[process_name]
-
 
     def update_process_from_task(self, task):
         for _, process in self.process_list.items():
@@ -47,7 +39,6 @@ class ProcessManager:
                 process.update_config(task.get_config())
                 self.add_process_to_history(process)
 
-        
     def create_process_from_task_reload(self, task):
         new_process_list = task.create_process_list(self.q)
         self.process_reloaded.update(new_process_list)
@@ -62,13 +53,11 @@ class ProcessManager:
                 process.launch_process()
                 self.add_process_to_history(process)
 
-    
     def start_all_process(self, poller, first_launch=False):
         for process_name, process in self.process_list.items():
             if first_launch and not process.Config.get('autostart'):
                 continue
             self.start_process(process_name, poller)
-
 
     def check_fatal(self, process_history):
         # here we will if we tried to restart process too quickly
@@ -77,31 +66,31 @@ class ProcessManager:
         timeout = 2
         if len(process_history) <= max_retrie:
             return False
-        if process_history[max_retrie - 1] - process_history[0] < datetime.timedelta(seconds=timeout):
+        if process_history[max_retrie - 1] - process_history[0] < \
+                datetime.timedelta(seconds=timeout):
             return True
 
         # we remove the oldest retry time
         process_history.pop(0)
         return False
-    
 
-    def need_restart(self, process):            
+    def need_restart(self, process):
         if process.killed():
             return None
-        if process.get_config_key("autorestart") == AutoRestartType('true') and\
-             process.is_exit_expected():
+        if process.get_config_key("autorestart") == AutoRestartType('true') \
+                and process.is_exit_expected():
             return True
-        
+
         # Here we check if we need to restart after it didnt stayed long enough
         if process.get_config_key("autorestart") != AutoRestartType('false') and\
             process.get_status() == ProcessState.FAILED and\
-            self.check_fatal(self.process_history_last_restart[process.get_name()]):
+                self.check_fatal(self.process_history_last_restart[process.get_name()]):
             logging.info(f"gave up {process.get_name()} entered a FATAL state, too many start retries too quickly")
             return False
-        
+
         if process.get_config_key("autorestart") == AutoRestartType('true'):
             return True
-        
+
         if self.process_history[process.get_name()] >\
                 process.get_config_key("startretries"):
             return False
@@ -109,7 +98,6 @@ class ProcessManager:
                 process.get_config_key("autorestart") == AutoRestartType('unexpected'):
             return True
         return False
-
 
     def handle_process_stopped(self, process_name, poller):
 
@@ -146,12 +134,10 @@ class ProcessManager:
                 del self.process_list[process_name]
             except KeyError:
                 pass
-       
-    
+
     def register_process(self, poller):
         for _, process in self.process_list.items():
             poller.register_process(process)
-
 
     def handle_read_event(self, process_list):
         for process_name, fd in process_list.items():
@@ -161,22 +147,24 @@ class ProcessManager:
     def stop_all(self, poller):
         for _, process in self.process_list.items():
             process.stop()
-    
+
     def stop_process(self, process_name):
         try:
             self.process_list[process_name].stop()
         except KeyError:
             pass
 
-
     def start_process(self, process_name, poller):
-        if not process_name in self.process_list:
+        if process_name not in self.process_list:
             return
-        if self.process_list[process_name].get_status() != ProcessState.NOTSTARTED\
-            and self.process_list[process_name].get_status() != ProcessState.KILLED\
-            and self.process_list[process_name].get_status() != ProcessState.STOPPED:
-                return
-        old_process = self.process_list[process_name] 
+        if self.process_list[process_name].get_status() not in [
+            ProcessState.NOTSTARTED,
+            ProcessState.KILLED,
+            ProcessState.STOPPED,
+            ProcessState.FINISH
+        ]:
+            return
+        old_process = self.process_list[process_name]
         self.process_list[process_name] = self.process_list[process_name].clone()
         poller.register_process(self.process_list[process_name])
         self.add_process_to_history(self.process_list[process_name])
@@ -187,23 +175,21 @@ class ProcessManager:
         del old_process
 
     def restart_process(self, process_name):
-        if  self.process_list[process_name].get_status() == ProcessState.NOTSTARTED:
+        if self.process_list[process_name].get_status() == ProcessState.NOTSTARTED:
             self.process_list[process_name].launch_process()
             return
-        if  self.process_list[process_name].get_status() != ProcessState.RUNNING:
+        if self.process_list[process_name].get_status() != ProcessState.RUNNING:
             return
-        
-        new_process = self.process_list[process_name].clone()
-        self.process_reloaded.update ({process_name:new_process})
-        self.process_list[process_name].stop()
 
+        new_process = self.process_list[process_name].clone()
+        self.process_reloaded.update({process_name: new_process})
+        self.process_list[process_name].stop()
 
     def get_all_state(self):
         status = {}
         for process_name, process in self.process_list.items():
             status[process_name] = [process.get_status().value, process.get_pid()]
         return status
-    
 
     def forget_process(self, process_name):
         try:
@@ -212,7 +198,6 @@ class ProcessManager:
             del self.process_history_last_restart[process_name]
         except KeyError:
             pass
-
 
     def attach(self, process_name):
         if self.process_attached is not None:

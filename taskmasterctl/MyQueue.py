@@ -7,6 +7,7 @@ class MyQueue():
 
     def get(self, timeout=None):
         return self.q.get(timeout=timeout)
+
     def put(self, item):
         self.q.put(item)
 
