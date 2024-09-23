@@ -8,6 +8,8 @@ import subprocess
 import os
 import threading
 
+import logging
+logger = logging.getLogger(__name__)
 
 class EventType(Enum):
     DEAD = "EventDead",
@@ -44,7 +46,11 @@ class Event():
 
 
 def reload_conf(config_name, process_manager, old_task_list, poller):
-    new_task_list = Task.get_task_from_config_file(config_name)
+    try:
+        new_task_list = Task.get_task_from_config_file(config_name)
+    except Exception as e:
+        logging.warning(f"Error while loading config file: {e}")
+        return old_task_list
     for old_task_name, old_task in old_task_list.items():
         # this task not in new config => despawn
         if old_task_name not in new_task_list:

@@ -14,9 +14,11 @@ class Commands:
     def _display_dict(self, dictionary: dict, command: str) -> None:
         if not dictionary:
             return
-        print(dictionary)
-        for key, value in dictionary.items():
-            print(f"{key:<20}{value[0]:<20}{value[1]:>7}")
+        if (command == "status"):
+            for key, value in dictionary.items():
+                print(f"{key:<20}{value[0]:<20}{value[1]:>7}")
+        else:
+            print (f"{command} executed successfully.")
 
     def _send(self, command: str, process: str) -> None:
         try:

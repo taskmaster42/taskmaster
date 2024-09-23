@@ -24,6 +24,9 @@ from Event import *
 import signal
 from taskmasterctl.server_http import Myserver
 
+import argparse
+
+
 RUNNING = True
 
 def stop_loop(signum, __):
@@ -73,12 +76,26 @@ def handle_cmd(event, process_manager, poller, task_list):
 
 
 def run():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("port", type=int)
+    parser.add_argument("--config", type=str, default="config_test.yml")
+    parser.add_argument("--out", action="store_true", dest="output")
+    parser.add_argument("--log", type=str, default="./taskmasterd.log")
+    args = parser.parse_args()
+
     set_up_sig()
     serv = Myserver()
 
-    logging.basicConfig(level=logging.INFO)
-    serv.launch_server(int (sys.argv[1]))
-    task_list = get_task_from_config_file('config_test.yml')
+    logging.basicConfig(level=logging.INFO, filename=args.log)
+    if args.output:
+        logging.getLogger().addHandler(logging.StreamHandler())
+    serv.launch_server(args.port)
+    try:
+        task_list = get_task_from_config_file(args.config)
+    except Exception as e:
+        logger.error(f"Error while reading config file: {e}")
+        serv.stop_server()
+        return
     q = MyQueue
     poller = Poller()
 

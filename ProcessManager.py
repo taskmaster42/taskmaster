@@ -112,7 +112,9 @@ class ProcessManager:
 
 
     def handle_process_stopped(self, process_name, poller):
+
         self.process_list[process_name].join_thread()
+        self.process_list[process_name].drain_pipe()
         poller.remove_process(self.process_list[process_name])
         self.process_list[process_name].clean_up()
 

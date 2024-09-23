@@ -150,7 +150,7 @@ class MyProcess():
             self.state = ProcessState.FINISH
 
         expected = self.is_exit_expected()
-        self.drain_pipe()
+        # self.drain_pipe()
         logger.info(f"Process {self.name} has finished with {self.return_code}" +
                     f"({'expected' if expected else 'unexpected'})")
         self.q.put(Event(EventType.DEAD, f"{self.name}"))
