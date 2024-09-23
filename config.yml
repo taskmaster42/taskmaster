@@ -1,0 +1,31 @@
+programs:
+  default:
+    cmd: "/bin/bash"
+    numprocs: 1
+    umask: "022"
+    workingdir: /tmp
+    autorestart: "unexpected"
+    autostart: "true"
+    exitcodes:
+      - 0
+      - 2
+
+  bash:
+    cmd: "/bin/bash"
+    numprocs: 2
+    umask: "022"
+    workingdir: /tmp
+    autostart: "true"
+    autorestart: unexpected
+    exitcodes:
+      - 0
+      - 2
+    startretries: 3
+    startsecs: 5
+    stopsignal: SIGINT
+    stopwaitsecs: 10
+    stdout: "/tmp/bash.stdout"
+    stderr: "/tmp/bash.stderr"
+    env:
+      STARTED_BY: taskmaster
+      ANSWER: 21
