@@ -40,7 +40,7 @@ def set_up_sig():
         signal.signal(sig, stop_loop)
 
 
-def handle_cmd(event, process_manager, poller, task_list):
+def handle_cmd(event, process_manager, poller, task_list, config_file):
     cmd = event.get_cmd()
     process = event.get_args()
     if process != "all"\
@@ -70,7 +70,7 @@ def handle_cmd(event, process_manager, poller, task_list):
             process_manager, task_list = event_update(
                 process_manager,
                 task_list,
-                poller)
+                poller, config_file)
         case "attach":
             attach(process_manager, process)
         case "detach":
@@ -85,26 +85,25 @@ def handle_cmd(event, process_manager, poller, task_list):
     return task_list
 
 
-def run():
+def run(server):
     parser = argparse.ArgumentParser()
     parser.add_argument("port", type=int)
-    parser.add_argument("--config", type=str, default="config_test.yml")
+    parser.add_argument("--config", type=str, default="./config.yml")
     parser.add_argument("--silent", action="store_true", dest="output")
     parser.add_argument("--log", type=str, default="./taskmasterd.log")
     args = parser.parse_args()
 
     set_up_sig()
-    serv = Myserver()
 
     logging.basicConfig(level=logging.INFO, filename=args.log)
     if not args.output:
         logging.getLogger().addHandler(logging.StreamHandler())
-    serv.launch_server(args.port)
+    server.launch_server(args.port)
     try:
         task_list = get_task_from_config_file(args.config)
     except Exception as e:
         logger.error(f"Error while reading config file: {e}")
-        serv.stop_server()
+        server.stop_server()
         return
     q = MyQueue
     poller = Poller()
@@ -127,7 +126,8 @@ def run():
                     item,
                     process_manager,
                     poller,
-                    task_list)
+                    task_list,
+                    args.config)
         except queue.Empty:
             pass
         fd_ready = poller.get_process_ready()
@@ -135,5 +135,5 @@ def run():
             process_manager.handle_read_event(fd_ready)
 
     process_manager.stop_all(poller)
-    serv.stop_server()
+    server.stop_server()
     logger.info("Exiting")

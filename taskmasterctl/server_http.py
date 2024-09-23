@@ -58,5 +58,9 @@ class Myserver():
         logger.info(f"Serving HTTP on port {port}")
 
     def stop_server(self):
-        self.httpd.shutdown()
-        self.httpd.server_close()
+        # random error
+        try:
+            self.httpd.shutdown()
+            self.httpd.server_close()
+        except Exception as e:
+            logger.warning(e)

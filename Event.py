@@ -109,8 +109,8 @@ def event_status(process_manager):
     HttpBuffer.put_msg(process_manager.get_all_state())
 
 
-def event_update(process_manager, task_list, poller):
-    task_list = reload_conf('config_test.yml', process_manager,
+def event_update(process_manager, task_list, poller, config_file):
+    task_list = reload_conf(config_file, process_manager,
                             task_list, poller)
     HttpBuffer.put_msg(process_manager.get_all_state())
     return process_manager, task_list

@@ -12,6 +12,7 @@ import getpass
 from HttpBuffer import HttpBuffer
 import select
 from Event import Event, EventType
+import pwd
 
 
 logger = logging.getLogger(__name__)
@@ -124,9 +125,11 @@ class MyProcess():
         logger.info(f"Spawned {self.name}")
         self.state = ProcessState.SPAWNED
         self.time_started = datetime.datetime.now()
-        if os.geteuid() == 0:
+        if os.geteuid() == 0 and pwd.getpwnam(self.Config.get('user')):
             user = self.Config.get('user')
         else:
+            if os.geteuid() == 0:
+                logger.warning(f"User {self.Config.get('user')} not found")
             user = getpass.getuser()
         self.proc = subprocess.Popen(self.cmd,
                                      stdin=self.stdin_read,
