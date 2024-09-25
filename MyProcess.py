@@ -117,7 +117,6 @@ class MyProcess():
         return int(self.Config.get('umask'), 8)
 
     def drain_pipe(self):
-        print("Draining pipe")
         poller = Poller(1)
         poller.register_process(self)
         fd_r = poller.get_process_ready()
@@ -237,7 +236,6 @@ class MyProcess():
 
     def handle_read(self):
         self.lock.acquire()
-        print(self.fd_ready)
         for fd in self.fd_ready:
             if fd == self.stdout_read:
                 self.read_fd(fd, self.stdout_log, 'stdout')
