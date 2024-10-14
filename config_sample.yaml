@@ -1,0 +1,20 @@
+programs:
+  nginx:
+    cmd: "yourcommand"
+    numprocs: 1
+    umask: 022
+    workingdir: /tmp
+    autostart: true
+    autorestart: unexpected
+    exitcodes:
+      - 0
+      - 2
+    startretries: 3
+    startsecs: 5
+    stopsignal: SIGTERM
+    stopwaitsecs: 10
+    stdout: /tmp/nginx.stdout
+    stderr: /tmp/nginx.stderr
+    env:
+      STARTED_BY: taskmaster
+      ANSWER: 42
